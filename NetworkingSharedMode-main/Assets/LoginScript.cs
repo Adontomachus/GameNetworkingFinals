@@ -43,7 +43,7 @@ public class LogInScript : MonoBehaviour
 
     private IEnumerator Start()
     {
-        
+
 
         yield return LocalHostGetRequest(LOCALHOST1);
 
@@ -86,8 +86,8 @@ public class LogInScript : MonoBehaviour
             if (player.playername == loginUser && player.password == loginPass)
             {
                 isValidLogin = true;
-                existingusername = player.playername;  
-                existingpassword = player.password;  
+                existingusername = player.playername;
+                existingpassword = player.password;
                 break;
             }
         }
@@ -100,7 +100,7 @@ public class LogInScript : MonoBehaviour
         }
         else
         {
-            invalidPassword.SetActive(true); 
+            invalidPassword.SetActive(true);
             Debug.Log("Invalid credentials.");
         }
     }
@@ -158,6 +158,18 @@ public class LogInScript : MonoBehaviour
 
         StartCoroutine(PostUserRegistration(user));
     }
+    public void PlayerReg()
+    {
+        var user = new UserCredentials()
+        {
+            playername = username.text,
+            password = password.text,
+            kills = 0,
+            deaths = 0
+        };
+
+        StartCoroutine(PostUserRegistration2(user));
+    }
     public void DeleteUserCredentials()
     {
         var user = new UserCredentials()
@@ -179,7 +191,6 @@ public class LogInScript : MonoBehaviour
         {
             yield return checkRequest.SendWebRequest();
 
-            // Handle the response
             if (checkRequest.result == UnityWebRequest.Result.Success)
             {
                 var users = JsonConvert.DeserializeObject<List<User>>(checkRequest.downloadHandler.text);
@@ -189,7 +200,7 @@ public class LogInScript : MonoBehaviour
                     invalidPassword.SetActive(true);
                 }
                 var storedUser = users[0];
-                if (storedUser.password != user.password) 
+                if (storedUser.password != user.password)
                 {
                     Debug.Log("Incorrect password.");
                     invalidPassword.SetActive(true);
@@ -205,11 +216,39 @@ public class LogInScript : MonoBehaviour
             }
         }
     }
+    private IEnumerator PostUserRegistration2(UserCredentials user)
+    {
+        string registerUrl = "http://localhost:3000/players";
+        string jsonData = JsonConvert.SerializeObject(user);
+
+        using (UnityWebRequest registerRequest = new UnityWebRequest(registerUrl, UnityWebRequest.kHttpVerbPOST))
+        {
+            byte[] jsonToSend = new System.Text.UTF8Encoding().GetBytes(jsonData);
+            registerRequest.uploadHandler = new UploadHandlerRaw(jsonToSend);
+            registerRequest.downloadHandler = new DownloadHandlerBuffer();
+
+            registerRequest.SetRequestHeader("Content-Type", "application/json");
+
+            yield return registerRequest.SendWebRequest();
+
+            if (registerRequest.result == UnityWebRequest.Result.Success)
+            {
+                Debug.Log("User registered successfully.");
+                currentPlayer.GetComponent<PlayerNameUI>().playernameText = username.text;
+                currentPlayer.GetComponent<PlayerNameUI>().getUsers = true;
+            }
+            else
+            {
+                Debug.LogError("Error registering user: " + registerRequest.error);
+                invalidPassword.SetActive(true);
+            }
+        }
+    }
     private IEnumerator HttpDeleteRequest(UserCredentials user)
     {
         string checkUrl = "http://localhost:3000/players?playername=" + user.playername;
 
-        using (UnityWebRequest checkRequest = UnityWebRequest.Get(checkUrl))  // Use GET to check if player exists
+        using (UnityWebRequest checkRequest = UnityWebRequest.Get(checkUrl))
         {
             yield return checkRequest.SendWebRequest();
 
@@ -227,7 +266,7 @@ public class LogInScript : MonoBehaviour
                     Debug.Log("Incorrect password.");
                     invalidPassword.SetActive(true);
                 }
-                string deleteUrl = "http://localhost:3000/players/" + storedUser.playername; 
+                string deleteUrl = "http://localhost:3000/players/" + storedUser.playername;
                 using (UnityWebRequest deleteRequest = UnityWebRequest.Delete(deleteUrl))
                 {
                     yield return deleteRequest.SendWebRequest();
